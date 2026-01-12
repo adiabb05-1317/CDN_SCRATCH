@@ -61,7 +61,7 @@ All services should show as "healthy".
 - **Origin Server**: http://localhost:8001
 - **Meta Server**: http://localhost:8002
 - **CDN Node**: http://localhost:4000
-- **FSS**: http://localhost:5000
+- **FSS**: http://localhost:5050
 - **PostgreSQL**: localhost:5432
 - **Redis**: localhost:6379
 - **MinIO Console**: http://localhost:9001
@@ -205,7 +205,7 @@ curl -X POST http://localhost:8002/meta/register \
 ### Test File Upload
 
 ```bash
-curl -X POST http://localhost:5000/post/test.txt \
+curl -X POST http://localhost:5050/post/test.txt \
   -H "Content-Type: text/plain" \
   -d "Hello, CDN!"
 ```
@@ -213,7 +213,7 @@ curl -X POST http://localhost:5000/post/test.txt \
 ### Test File Retrieval
 
 ```bash
-curl http://localhost:5000/get/test.txt
+curl http://localhost:5050/get/test.txt
 ```
 
 ## Configuration
@@ -238,7 +238,7 @@ Origin Server (8001)
 Meta Server (8002) <-> PostgreSQL
   |
   v
-CDN Node (4000) <-> Redis <-> FSS (5000) <-> MinIO
+CDN Node (4000) <-> Redis <-> FSS (5050) <-> MinIO
 ```
 
 ## Performance
