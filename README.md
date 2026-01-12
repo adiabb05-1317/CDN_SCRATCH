@@ -1,6 +1,8 @@
 # Distributed CDN System
 
 A complete Content Delivery Network implementation using Python, FastAPI, Docker, PostgreSQL, Redis, and MinIO.
+<img width="515" height="497" alt="Screenshot 2026-01-12 at 11 53 02 PM" src="https://github.com/user-attachments/assets/59cfa346-87e9-4779-ba7f-990314db04dd" />
+
 
 ## Architecture
 
