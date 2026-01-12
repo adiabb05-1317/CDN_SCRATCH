@@ -1,0 +1,139 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: cdn_postgres
+    environment:
+      POSTGRES_DB: cdn_metadata
+      POSTGRES_USER: cdn_user
+      POSTGRES_PASSWORD: cdn_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cdn_user -d cdn_metadata"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: cdn_redis
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: cdn_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  meta-server:
+    build: ./meta-server
+    container_name: cdn_meta
+    environment:
+      DATABASE_URL: postgresql://cdn_user:cdn_pass@postgres:5432/cdn_metadata
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  origin-server:
+    build: ./origin-server
+    container_name: cdn_origin
+    environment:
+      META_SERVER_URL: http://meta-server:8002
+    ports:
+      - "8001:8001"
+    depends_on:
+      meta-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  cdn-node:
+    build: ./cdn-node
+    container_name: cdn_node
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      META_SERVER_URL: http://meta-server:8002
+      FSS_URL: http://fss:5050
+      CDN_ID: 1
+      CDN_LAT: 37.7749
+      CDN_LNG: -122.4194
+    ports:
+      - "4000:4000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      meta-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  fss:
+    build: ./fss
+    container_name: cdn_fss
+    environment:
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      META_SERVER_URL: http://meta-server:8002
+    ports:
+      - "5050:5050"
+    depends_on:
+      minio:
+        condition: service_healthy
+      meta-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5050/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+
+volumes:
+  postgres_data:
+  minio_data:
